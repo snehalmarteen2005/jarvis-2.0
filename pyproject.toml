@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "A fully autonomous, local educational and productivity AI agent."
 readme = "README.md"
 requires-python = ">=3.10"
-license = {text = "MIT"}
+license = "MIT"
 dependencies = [
     "langchain-ollama>=0.3.0",
     "langchain-core>=0.3.0",
@@ -37,3 +37,6 @@ target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "W"]
+
+[tool.setuptools.packages.find]
+include = ["liebchen*", "ai*", "core*", "services*", "tools*"]
