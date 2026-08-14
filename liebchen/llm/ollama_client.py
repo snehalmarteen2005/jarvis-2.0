@@ -2,17 +2,21 @@
 Ollama LLM client initialization and health checking.
 
 This module provides a factory function that creates a configured
-ChatOllama instance and verifies the Ollama server is reachable.
+ChatOllama instance and verifies the Ollama server is reachable,
+or falls back to a cloud API (like Groq) if a cloud API key is provided.
 """
 
 from __future__ import annotations
 
+import os
 import sys
 import urllib.request
 import urllib.error
 import json
+from typing import Any
 
 from langchain_ollama import ChatOllama
+from langchain_core.language_models.chat_models import BaseChatModel
 
 from liebchen.config import OLLAMA_BASE_URL, OLLAMA_MODEL, OLLAMA_TEMPERATURE
 
@@ -24,6 +28,15 @@ def check_ollama_health() -> dict:
     Returns:
         A dict with keys: 'server_ok', 'model_available', 'models', 'error'.
     """
+    # If using Groq in production, bypass the local Ollama health check
+    if os.environ.get("GROQ_API_KEY"):
+        return {
+            "server_ok": True,
+            "model_available": True,
+            "models": ["groq-cloud"],
+            "error": None,
+        }
+
     result = {
         "server_ok": False,
         "model_available": False,
@@ -70,11 +83,27 @@ def get_llm(
     model: str | None = None,
     temperature: float | None = None,
     base_url: str | None = None,
-) -> ChatOllama:
+) -> BaseChatModel:
     """
-    Create and return a configured ChatOllama instance.
-    Optimized for fast CPU inference (Ryzen 5 5625U + 12GB RAM).
+    Create and return a configured Chat Model instance.
+    Uses Groq Cloud if GROQ_API_KEY is present (ideal for production),
+    otherwise falls back to local Ollama (optimized for fast CPU inference).
     """
+    groq_api_key = os.environ.get("GROQ_API_KEY")
+    
+    if groq_api_key:
+        try:
+            from langchain_groq import ChatGroq
+            # Groq uses Llama 3 models natively. We default to the fastest 8B model.
+            groq_model = "llama-3.1-8b-instant" 
+            return ChatGroq(
+                api_key=groq_api_key,
+                model_name=groq_model,
+                temperature=temperature if temperature is not None else OLLAMA_TEMPERATURE,
+            )
+        except ImportError:
+            print("⚠️ GROQ_API_KEY is set but langchain-groq is not installed. Falling back to Ollama...")
+
     return ChatOllama(
         model=model or OLLAMA_MODEL,
         temperature=temperature if temperature is not None else OLLAMA_TEMPERATURE,
@@ -88,12 +117,16 @@ def get_llm(
     )
 
 
-def get_llm_with_health_check(**kwargs) -> ChatOllama:
+def get_llm_with_health_check(**kwargs) -> BaseChatModel:
     """
-    Create a ChatOllama instance after verifying Ollama is healthy.
+    Create a Chat Model instance after verifying health.
 
     Prints diagnostic info and exits if the server or model is unavailable.
     """
+    if os.environ.get("GROQ_API_KEY"):
+        print("☁️ Using Groq Cloud API for Inference (GROQ_API_KEY found)")
+        return get_llm(**kwargs)
+        
     print("🔍 Checking Ollama server health...")
     health = check_ollama_health()
 
