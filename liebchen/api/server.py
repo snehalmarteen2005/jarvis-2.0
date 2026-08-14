@@ -13,13 +13,16 @@ import os
 import sys
 import uuid
 import sqlite3
+import json
+import logging
+import traceback
 from pathlib import Path
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
 # Ensure project root is on path
@@ -28,41 +31,67 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 from liebchen.database.models import initialize_database, get_user
 from liebchen.llm.ollama_client import get_llm, check_ollama_health
 from liebchen.agent.graph import build_graph
-from liebchen.config import OLLAMA_MODEL, OLLAMA_BASE_URL
 
 from langchain_core.messages import HumanMessage
 
+log = logging.getLogger("api.server")
+
+# ── Environment Detection ────────────────────────────────────────────────────
+IS_VERCEL = bool(os.getenv("VERCEL"))
 
 # ── Global state ──────────────────────────────────────────────────────────────
 _graph = None
 _config = None
 _user_id = 1
+_initialized = False
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Initialize database and basic configuration on startup."""
-    global _config, _user_id
+def _lazy_init():
+    """
+    Lazy initialization for serverless environments.
+    On Vercel, there is no persistent background thread — we initialize on first request.
+    """
+    global _graph, _config, _user_id, _initialized
 
-    print("[API] Liebchen Web API starting...")
+    if _initialized:
+        return
 
     try:
         # Initialize database
         initialize_database()
-        print("[API] Database initialized")
+        log.info("[API] Database initialized")
 
         # Check user
         user = get_user(1)
         if user:
-            print(f"[API] User: {user['name']}")
+            log.info(f"[API] User: {user['name']}")
             _user_id = user["id"]
     except Exception as e:
-        print(f"[API] Database init warning: {e}")
+        log.warning(f"[API] Database init warning: {e}")
+
+    # Build the agent graph (uses Groq on cloud, Ollama locally)
+    try:
+        llm = get_llm()
+        _graph, _ = build_graph(llm=llm)
+        log.info("[API] Agent graph ready")
+    except Exception as e:
+        log.error(f"[API] Failed to build graph: {e}")
+        log.error(traceback.format_exc())
 
     # Create a default thread ID
     thread_id = f"web-{uuid.uuid4().hex[:8]}"
     _config = {"configurable": {"thread_id": thread_id}}
-    print(f"[API] Web API ready (thread: {thread_id})")
+
+    _initialized = True
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Initialize on startup (for non-serverless environments)."""
+    if not IS_VERCEL:
+        print("[API] Liebchen Web API starting...")
+        _lazy_init()
+        print(f"[API] Web API ready")
 
     yield
 
@@ -95,93 +124,99 @@ class ChatResponse(BaseModel):
     thread_id: str
 
 
+# ── Intent Router (safe import) ──────────────────────────────────────────────
+def _safe_route(text: str):
+    """Try to use the intent router, but don't crash if it fails on Linux."""
+    try:
+        from ai.router import route
+        return route(text)
+    except Exception:
+        return None
+
+
 # ── API Routes ────────────────────────────────────────────────────────────────
 
 @app.get("/api/health")
 async def health_check():
     """Check server and Ollama health."""
+    _lazy_init()
     ollama = check_ollama_health()
     user = get_user(_user_id)
+
+    # Import config safely
+    try:
+        from liebchen.config import OLLAMA_MODEL
+        model = OLLAMA_MODEL
+    except Exception:
+        model = "groq-cloud" if os.getenv("GROQ_API_KEY") else "unknown"
+
     return {
         "status": "ok",
         "ollama": ollama,
         "user": user["name"] if user else None,
-        "model": OLLAMA_MODEL,
+        "model": model,
     }
-
-
-from ai.router import route
-from core.lazy import LazyLoader
 
 
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat(req: ChatRequest):
     """Send a message to the Liebchen agent."""
-    global _config
+    _lazy_init()
 
     thread_id = req.thread_id or (_config["configurable"]["thread_id"] if _config else f"web-{uuid.uuid4().hex[:8]}")
     config = {"configurable": {"thread_id": thread_id}}
 
     # 1. Fast-Path Intent Router Check (< 50ms bypass)
-    route_res = route(req.message)
-    if route_res.handled and route_res.response:
+    route_res = _safe_route(req.message)
+    if route_res and route_res.handled and route_res.response:
         return ChatResponse(
             response=route_res.response,
             thread_id=thread_id,
         )
 
-    # 2. LLM-path — Ensure LazyLoader has compiled the graph
-    graph = LazyLoader.get_graph()
-    if not graph:
-        raise HTTPException(status_code=503, detail="Agent initializing...")
+    # 2. LLM-path
+    if not _graph:
+        raise HTTPException(status_code=503, detail="Agent failed to initialize. Check server logs.")
 
     try:
-        import time
-        t0 = time.perf_counter()
-        
-        result = graph.invoke(
+        result = _graph.invoke(
             {"messages": [HumanMessage(content=req.message)], "user_id": _user_id},
             config=config,
         )
-        
-        t_llm = (time.perf_counter() - t0) * 1000
-        import logging
-        logging.getLogger("api.server").info(f"[PROFILER] LangGraph + LLM: {t_llm:.2f} ms")
-        
+
         ai_msg = result["messages"][-1]
         return ChatResponse(
             response=ai_msg.content,
             thread_id=thread_id,
         )
     except Exception as e:
+        log.error(f"Chat error: {e}")
+        log.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))
 
-
-from fastapi.responses import StreamingResponse
-import json
 
 @app.post("/api/chat_stream")
 async def chat_stream(req: ChatRequest):
     """Stream messages from the Liebchen agent."""
-    global _config
+    _lazy_init()
+
     thread_id = req.thread_id or (_config["configurable"]["thread_id"] if _config else f"web-{uuid.uuid4().hex[:8]}")
     config = {"configurable": {"thread_id": thread_id}}
 
     # 1. Fast-Path Intent Router Check
-    route_res = route(req.message)
-    if route_res.handled and route_res.response:
+    route_res = _safe_route(req.message)
+    if route_res and route_res.handled and route_res.response:
         async def fast_stream():
             yield f"data: {json.dumps({'chunk': route_res.response, 'thread_id': thread_id})}\n\n"
         return StreamingResponse(fast_stream(), media_type="text/event-stream")
 
-    graph = LazyLoader.get_graph()
-    if not graph:
-        raise HTTPException(status_code=503, detail="Agent initializing...")
+    if not _graph:
+        raise HTTPException(status_code=503, detail="Agent failed to initialize. Check server logs.")
 
     async def event_stream():
         try:
             # We use astream_events to get tokens from the LLM in real-time
-            async for event in graph.astream_events(
+            async for event in _graph.astream_events(
                 {"messages": [HumanMessage(content=req.message)], "user_id": _user_id},
                 config=config,
                 version="v2"
@@ -195,11 +230,12 @@ async def chat_stream(req: ChatRequest):
                         content = chunk["content"]
                     elif hasattr(chunk, "content"):
                         content = chunk.content
-                    
+
                     if content:
                         # Yield Server-Sent Event
                         yield f"data: {json.dumps({'chunk': content, 'thread_id': thread_id})}\n\n"
         except Exception as e:
+            log.error(f"Stream error: {e}")
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
