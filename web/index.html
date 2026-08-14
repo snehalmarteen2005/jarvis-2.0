@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Liebchen — Your Local AI Learning Companion. Voice-activated, privacy-first AI agent for education and productivity.">
+    <title>Liebchen — AI Learning Companion</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <!-- ══ Sci-Fi Iron Man / Hacker Cyber Background ══ -->
+    <div class="ambient-bg">
+        <div class="cyber-grid"></div>
+        <div class="scanline-overlay"></div>
+        
+        <!-- Arc Reactor Rotating HUD Background Rings -->
+        <div class="arc-reactor-bg">
+            <div class="arc-ring ring-outer"></div>
+            <div class="arc-ring ring-middle"></div>
+            <div class="arc-ring ring-inner"></div>
+            <div class="arc-core-glow"></div>
+        </div>
+
+        <!-- Telemetry Data Overlay Corners -->
+        <div class="hud-telemetry top-left">
+            <span class="hud-tag">SYS.ID</span> JARVIS.AI // v2.0
+        </div>
+        <div class="hud-telemetry top-right">
+            <span class="hud-tag">CORE</span> QWEN-3B [ACTIVE]
+        </div>
+        <div class="hud-telemetry bottom-left">
+            <span class="hud-tag">VOICE</span> ONLINE // 120s
+        </div>
+        <div class="hud-telemetry bottom-right">
+            <span class="hud-tag">STATUS</span> SYSTEM ENCRYPTED
+        </div>
+    </div>
+
+    <!-- ══ Wake Word Listener (Always On) ══ -->
+    <div id="wake-listener" class="wake-listener">
+        <div class="wake-pulse"></div>
+        <div class="wake-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                <line x1="12" y1="19" x2="12" y2="23"/>
+                <line x1="8" y1="23" x2="16" y2="23"/>
+            </svg>
+        </div>
+        <span class="wake-label">Say <strong>"Jarvis"</strong></span>
+    </div>
+
+    <!-- ══ Main Assistant Panel ══ -->
+    <div id="assistant-panel" class="assistant-panel hidden">
+        <!-- Glass overlay -->
+        <div class="panel-backdrop"></div>
+
+        <div class="panel-content">
+            <!-- Header -->
+            <header class="panel-header">
+                <div class="header-left">
+                    <div class="brain-orb" id="brain-orb">
+                        <div class="orb-ring ring-1"></div>
+                        <div class="orb-ring ring-2"></div>
+                        <div class="orb-ring ring-3"></div>
+                        <div class="orb-core">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/>
+                                <path d="M8 12c0-2.21 1.79-4 4-4s4 1.79 4 4"/>
+                                <circle cx="12" cy="12" r="1.5"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="header-text">
+                        <h1>Jarvis</h1>
+                        <span class="status-badge" id="status-badge">
+                            <span class="status-dot"></span>
+                            <span id="status-text">Ready</span>
+                        </span>
+                    </div>
+                </div>
+                <div class="header-actions">
+                    <!-- Stop Thinking Button (Visible during thinking) -->
+                    <button class="icon-btn stop-btn hidden" id="btn-stop-thinking" title="Stop Thinking">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2">
+                            <rect x="6" y="6" width="12" height="12" rx="2" fill="#ef4444"/>
+                        </svg>
+                        <span class="stop-text">Stop</span>
+                    </button>
+                    <button class="icon-btn" id="btn-new-chat" title="New conversation">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+                    </button>
+                    <!-- Power Button to completely turn off the background listener -->
+                    <button class="icon-btn" id="btn-power" title="Turn Off Jarvis (Stop Listening)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2">
+                            <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
+                            <line x1="12" y1="2" x2="12" y2="12"></line>
+                        </svg>
+                    </button>
+                    <button class="icon-btn" id="btn-close" title="Hide (Keep Listening)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Voice Waveform -->
+            <div class="waveform-container" id="waveform-container">
+                <div class="waveform" id="waveform">
+                    <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+                    <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+                    <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+                    <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+                    <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+                    <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+                    <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+                    <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+                </div>
+                <p class="listening-label" id="listening-label">Listening...</p>
+            </div>
+
+            <!-- Chat Area -->
+            <div class="chat-area" id="chat-area">
+                <div class="welcome-message" id="welcome-msg">
+                    <div class="welcome-icon">🧠</div>
+                    <h2>Hello, I'm Jarvis</h2>
+                    <p>Your personal AI assistant. Ask me anything — type below or click the mic to speak.</p>
+                    <div class="quick-actions">
+                        <button class="quick-btn" data-msg="What are my pending tasks?">📋 My Tasks</button>
+                        <button class="quick-btn" data-msg="Show me my schedule">📅 Schedule</button>
+                        <button class="quick-btn" data-msg="Analyze my skills">📊 Skill Analysis</button>
+                        <button class="quick-btn" data-msg="Create a study plan for this week">📚 Study Plan</button>
+                    </div>
+                </div>
+                <!-- Messages will be appended here -->
+            </div>
+
+            <!-- Input Area -->
+            <div class="input-area">
+                <div class="input-wrapper">
+                    <textarea
+                        id="msg-input"
+                        placeholder="Ask Jarvis anything..."
+                        rows="1"
+                        autocomplete="off"
+                    ></textarea>
+                    <div class="input-actions">
+                        <button class="mic-btn" id="btn-mic" title="Voice input">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                                <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                                <line x1="12" y1="19" x2="12" y2="23"/>
+                                <line x1="8" y1="23" x2="16" y2="23"/>
+                            </svg>
+                        </button>
+                        <button class="send-btn" id="btn-send" title="Send message" disabled>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <p class="input-hint">
+                    <kbd>Enter</kbd> to send · <kbd>Shift+Enter</kbd> for new line · Voice activated
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══ Toast Notifications ══ -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <script src="/app.js"></script>
+</body>
+</html>

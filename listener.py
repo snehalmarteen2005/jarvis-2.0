@@ -1,0 +1,10 @@
+import sys
+print("\n" + "="*60)
+print(" 🛑 IMPORTANT: listener.py has been DEPRECATED!")
+print(" The listener has been merged directly into desktop.py for ")
+print(" instant 0-millisecond response times.")
+print("")
+print(" Please run the following command instead:")
+print("    python desktop.py")
+print("="*60 + "\n")
+sys.exit(1)

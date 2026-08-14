@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "liebchen"
+version = "0.1.0"
+description = "A fully autonomous, local educational and productivity AI agent."
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+dependencies = [
+    "langchain-ollama>=0.3.0",
+    "langchain-core>=0.3.0",
+    "langgraph>=0.4.0",
+    "langgraph-checkpoint-sqlite>=2.0.0",
+    "pydantic>=2.0",
+]
+
+[project.optional-dependencies]
+api = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.8.0",
+]
+
+[project.scripts]
+liebchen = "cli:main"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
