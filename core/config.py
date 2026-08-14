@@ -22,14 +22,19 @@ LOG_DIR = DATA_DIR / "logs"
 LOG_DIR.mkdir(exist_ok=True)
 
 # ── Database ───────────────────────────────────────────────────────────────────
-DB_PATH = Path(os.getenv("LIEBCHEN_DB_PATH", str(DATA_DIR / "liebchen.db")))
+_db_env = os.getenv("LIEBCHEN_DB_PATH")
+DB_PATH = Path(_db_env if _db_env else str(DATA_DIR / "liebchen.db"))
 CHECKPOINT_DB_PATH = str(DATA_DIR / "checkpoints.db")
 
 # ── Ollama LLM ─────────────────────────────────────────────────────────────────
-OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-# Qwen 2.5 3B recommended for 12GB RAM + HDD (2GB model vs 4.7GB for Llama 3 8B)
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:3b")
-OLLAMA_TEMPERATURE = float(os.getenv("OLLAMA_TEMPERATURE", "0.7"))
+_url_env = os.getenv("OLLAMA_BASE_URL")
+OLLAMA_BASE_URL = _url_env if _url_env else "http://localhost:11434"
+
+_model_env = os.getenv("OLLAMA_MODEL")
+OLLAMA_MODEL = _model_env if _model_env else "qwen2.5:3b"
+
+_temp_env = os.getenv("OLLAMA_TEMPERATURE")
+OLLAMA_TEMPERATURE = float(_temp_env if _temp_env else "0.7")
 
 # ── Ollama Performance Tuning ─────────────────────────────────────────────────
 # These are set as env vars BEFORE Ollama starts
@@ -42,8 +47,12 @@ OLLAMA_ENV = {
 }
 
 # ── Agent ──────────────────────────────────────────────────────────────────────
-MAX_AGENT_ITERATIONS = int(os.getenv("LIEBCHEN_MAX_ITERATIONS", "4"))
+_iter_env = os.getenv("LIEBCHEN_MAX_ITERATIONS")
+MAX_AGENT_ITERATIONS = int(_iter_env if _iter_env else "4")
 
 # ── Voice ──────────────────────────────────────────────────────────────────────
-VOICE_ENERGY_THRESHOLD = int(os.getenv("VOICE_ENERGY_THRESHOLD", "300"))
-VOICE_PAUSE_THRESHOLD = float(os.getenv("VOICE_PAUSE_THRESHOLD", "1.5"))
+_eng_env = os.getenv("VOICE_ENERGY_THRESHOLD")
+VOICE_ENERGY_THRESHOLD = int(_eng_env if _eng_env else "300")
+
+_pause_env = os.getenv("VOICE_PAUSE_THRESHOLD")
+VOICE_PAUSE_THRESHOLD = float(_pause_env if _pause_env else "1.5")
